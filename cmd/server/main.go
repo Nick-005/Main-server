@@ -6,6 +6,7 @@ import (
 	"os"
 	"server/internal/config"
 	"server/internal/lib/logger/slogf"
+	"server/internal/server/handlers/save"
 	"server/internal/storage/sqlite"
 
 	"github.com/go-chi/chi"
@@ -41,7 +42,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	// router.Post("/url", save.New(log, storage))
+	router.Post("/url", save.New(log, storage))
 	// router.Get("/urls", take.New(log, storage))
 	// router.Get("/url/{id}", take.NewByID(log, storage))
 	log.Info("starting server", slog.String("address", cfg.Address))

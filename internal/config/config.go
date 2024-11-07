@@ -21,7 +21,7 @@ type HTTPServer struct {
 }
 
 func MustLoad() *Config {
-	configPath := "../config/local.yaml"
+	configPath := "D:\\Projects\\VScode\\Golangg\\server-pro\\config\\local.yaml"
 	if configPath == "" {
 		log.Fatal("ConfigPATH is not set")
 	}

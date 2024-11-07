@@ -19,18 +19,22 @@ func New(storagePath string) (*Storage, error) {
 		return nil, fmt.Errorf("%s : %w", op, err)
 	}
 
-	stmt, err := db.Prepare(`
-	CREATE TABLE IF NOT EXISTS url(
+	stmtVacancy, err := db.Prepare(`
+	CREATE TABLE IF NOT EXISTS vacancy(
 		id INTEGER PRIMARY KEY,
-		alias TEXT NOT NULL UNIQUE,
-		url TEXT NOT NULL UNIQUE);
-		CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);
+		employee_id INTEGER,
+		name TEXT NOT NULL,
+		price INTEGER,
+		org TEXT NOT NULL,
+		location TEXT NOT NULL,
+		experience TEXT);
+		CREATE INDEX IF NOT EXISTS price ON vacancy(price);
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	_, err = stmt.Exec()
+	_, err = stmtVacancy.Exec()
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -38,14 +42,14 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
+func (s *Storage) SaveURL(employee_id int, name string, price int, org string, location string, experience string) (int64, error) {
 	const op = "storage.sqlite.SaveURL"
-	stmt, err := s.db.Prepare("INSERT INTO url(url, alias) VALUES (?, ?)")
+	stmtVacancy, err := s.db.Prepare("INSERT INTO vacancy(employee_id,name ,price,org,location,experience) VALUES (?, ?,?,?,?,?)")
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := stmt.Exec(urlToSave, alias)
+	res, err := stmtVacancy.Exec(employee_id, name, price, org, location, experience)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
@@ -63,13 +67,13 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
 /*
 func (s *Storage) GetURL(ID int) (take.Response, error) {
 	const op = "storage.sqlite.GetURL"
-	stmt, err := s.db.Prepare("SELECT * FROM url WHERE url.id = ?")
+	stmtVacancy, err := s.db.Prepare("SELECT * FROM url WHERE url.id = ?")
 	if err != nil {
 		fmt.Printf("%s: preparing statement  %w", op, storage.ErrURLNotFound)
 
 	}
 	var result take.Response
-	err = stmt.QueryRow(ID).Scan(&result.ID, &result.Alias, &result.URL)
+	err = stmtVacancy.QueryRow(ID).Scan(&result.ID, &result.Alias, &result.URL)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			fmt.Printf("%s: preparing statement  %w", op, storage.ErrURLNotFound)
