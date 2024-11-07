@@ -52,7 +52,7 @@ func (s *Storage) SaveURL(employee_id int, name string, price int, org string, l
 	res, err := stmtVacancy.Exec(employee_id, name, price, org, location, experience)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrVACExists)
 		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}

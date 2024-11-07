@@ -35,7 +35,6 @@ func main() {
 		os.Exit(1)
 	}
 	_ = storage
-	// storage.SaveURL("google.com", "sdffff")
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)

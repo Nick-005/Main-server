@@ -53,18 +53,8 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 		}
 
 		log.Info("request body decoded", slog.Any("request", req))
-
-		// if err := validator.New().Struct(req); err != nil {
-		// 	validateErr := err.(validator.ValidationErrors)
-
-		// 	log.Error("invalid request", slogf.Err(err))
-
-		// 	render.JSON(w, r, resp.ValidationError(validateErr))
-
-		// 	return
-		// }
 		id, err := urlSaver.SaveURL(req.Emp_ID, req.Vac_Name, req.Price, req.Organization, req.Location, req.Experience)
-		if errors.Is(err, storage.ErrURLExists) {
+		if errors.Is(err, storage.ErrVACExists) {
 			log.Info("url already exists", slog.String("vac", req.Vac_Name))
 			render.JSON(w, r, resp.Error("url already exists"))
 			return
