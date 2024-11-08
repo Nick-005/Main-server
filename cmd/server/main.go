@@ -27,21 +27,27 @@ func main() {
 	log.Info("starting url-shortner")
 	log.Debug("debug messages are enabled")
 
-	//Создание экземпляра, через который будем работать с бд. Но сейчас просто создали новую таблицу
-	storage, err := sqlite.New(cfg.StoragePath)
-
+	//Создание экземпляра, через который будем работать с бд. Но сейчас просто создали новую таблицу вакансий
+	storageVac, err := sqlite.CreateVacancyTable(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage", slogf.Err(err))
 		os.Exit(1)
 	}
-	_ = storage
+	// Создание таблицы Работадателя
+	storageEmp, err := sqlite.CreateEmployeeTable(cfg.StoragePath)
+	if err != nil {
+		log.Error("failed to init storage", slogf.Err(err))
+		os.Exit(1)
+	}
+	// Ниже идёт создание роутера и использование его для middleware из chi
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/url", save.New(log, storage))
+	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
+	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
 	// router.Get("/urls", take.New(log, storage))
 	// router.Get("/url/{id}", take.NewByID(log, storage))
 	log.Info("starting server", slog.String("address", cfg.Address))

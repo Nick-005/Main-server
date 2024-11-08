@@ -12,7 +12,36 @@ type Storage struct {
 	db *sql.DB
 }
 
-func New(storagePath string) (*Storage, error) {
+func CreateEmployeeTable(storagPath string) (*Storage, error) {
+	const op = "storage.sqlite.Emp"
+	db, err := sql.Open("sqlite3", storagPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s : %w", op, err)
+	}
+	stmtEmp, err := db.Prepare(`
+	CREATE TABLE IF NOT EXISTS employee(
+		id INTEGER PRIMARY KEY,
+		limitVac INTEGER,
+		nameOrganization TEXT NOT NULL UNIQUE,
+		phoneNumber TEXT NOT NULL UNIQUE,
+		email TEXT NOT NULL UNIQUE ,
+		geography TEXT NOT NULL,
+		about TEXT);
+		CREATE INDEX IF NOT EXISTS about ON employee(about);
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = stmtEmp.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return &Storage{db: db}, nil
+}
+
+func CreateVacancyTable(storagePath string) (*Storage, error) {
 	const op = "storage.sqlite.New"
 	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
@@ -25,7 +54,6 @@ func New(storagePath string) (*Storage, error) {
 		employee_id INTEGER,
 		name TEXT NOT NULL,
 		price INTEGER,
-		org TEXT NOT NULL,
 		location TEXT NOT NULL,
 		experience TEXT);
 		CREATE INDEX IF NOT EXISTS price ON vacancy(price);
@@ -42,17 +70,39 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveURL(employee_id int, name string, price int, org string, location string, experience string) (int64, error) {
+func (s *Storage) AddVacancy(employee_id int, name string, price int, location string, experience string) (int64, error) {
 	const op = "storage.sqlite.SaveURL"
-	stmtVacancy, err := s.db.Prepare("INSERT INTO vacancy(employee_id,name ,price,org,location,experience) VALUES (?, ?,?,?,?,?)")
+
+	stmtVacancy, err := s.db.Prepare("INSERT INTO vacancy(employee_id,name ,price,location,experience) VALUES (?,?,?,?,?)")
+
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
+	limit := s.GetLimit(employee_id)
+	if limit != 0 {
+		return 0, fmt.Errorf("%s: %w", op, storage.ErrVACLimitIsOver)
+	}
 
-	res, err := stmtVacancy.Exec(employee_id, name, price, org, location, experience)
+	_, err = stmtVacancy.Exec(employee_id, name, price, location, experience)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrVACExists)
+		}
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	return 1, nil
+}
+
+func (s *Storage) AddEmployee(limitIsOver int, nameOrganization string, phoneNumber string, email string, geography string, about string) (int64, error) {
+	const op = "storage.sqlite.AddEmp"
+	stmt, err := s.db.Prepare("INSERT INTO employee(limitVac ,nameOrganization,phoneNumber,email,geography,about) VALUES (?,?,?,?,?,?)")
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+	res, err := stmt.Exec(limitIsOver, nameOrganization, phoneNumber, email, geography, about)
+	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrVACSomething)
 		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -60,8 +110,34 @@ func (s *Storage) SaveURL(employee_id int, name string, price int, org string, l
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
+	// fmt.Println(id)
 	return id, nil
-	// return res.LastInsertId(), nil
+}
+
+func (s *Storage) GetLimit(ID int) int {
+
+	stmtCount, err := s.db.Prepare("SELECT limitVac FROM employee WHERE id = ?")
+	if err != nil {
+		return -1
+	}
+	var count int
+	err = stmtCount.QueryRow(ID).Scan(&count)
+	if err != nil {
+		return -1
+	}
+	if count >= 10 {
+		return -1
+	}
+	update := count + 1
+	stmtUpdate, err := s.db.Prepare("UPDATE employee SET limitVac = ? WHERE id = ?")
+	if err != nil {
+		return -1
+	}
+	_, err = stmtUpdate.Exec(update, ID)
+	if err != nil {
+		return -1
+	}
+	return 0
 }
 
 /*
