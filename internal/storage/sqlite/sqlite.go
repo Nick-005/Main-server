@@ -2,7 +2,9 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"server/internal/server/handlers/take"
 	"server/internal/storage"
 
 	"github.com/mattn/go-sqlite3"
@@ -140,28 +142,30 @@ func (s *Storage) GetLimit(ID int) int {
 	return 0
 }
 
-/*
 func (s *Storage) GetURL(ID int) (take.Response, error) {
 	const op = "storage.sqlite.GetURL"
-	stmtVacancy, err := s.db.Prepare("SELECT * FROM url WHERE url.id = ?")
+	var result take.Response
+	stmtVacancy, err := s.db.Prepare("SELECT price FROM vacancy WHERE id = ?")
 	if err != nil {
-		fmt.Printf("%s: preparing statement  %w", op, storage.ErrURLNotFound)
+		return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
 
 	}
-	var result take.Response
-	err = stmtVacancy.QueryRow(ID).Scan(&result.ID, &result.Alias, &result.URL)
+
+	err = stmtVacancy.QueryRow(ID).Scan(&result.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Printf("%s: preparing statement  %w", op, storage.ErrURLNotFound)
-			return result, fmt.Errorf("This is bad", slogf.Err(err))
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
+
 		} else {
-			fmt.Printf("%s: scan statement %w", op, storage.ErrURLNotFound)
-			return result, fmt.Errorf("This is bad", slogf.Err(err))
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
+
 		}
 	}
+	result.Ko = "Nunorm"
 	return result, nil
 }
 
+/*
 func (s *Storage) GetAll() ([]take.Response, error) {
 	const op = "storage.sqlite.GetAll"
 	_, err := s.db.Prepare("SELECT * FROM url")

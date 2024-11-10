@@ -7,6 +7,7 @@ import (
 	"server/internal/config"
 	"server/internal/lib/logger/slogf"
 	"server/internal/server/handlers/save"
+	"server/internal/server/handlers/take"
 	"server/internal/storage/sqlite"
 
 	"github.com/go-chi/chi"
@@ -48,7 +49,7 @@ func main() {
 
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
-	// router.Get("/urls", take.New(log, storage))
+	router.Get("/vac/{id}", take.GetAll(log, storageVac))
 	// router.Get("/url/{id}", take.NewByID(log, storage))
 	log.Info("starting server", slog.String("address", cfg.Address))
 

@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/render"
 )
 
-type URLSaver interface {
+type SaveRequest interface {
 	AddVacancy(employee_id int, name string, price int, location string, experience string) (int64, error)
 	AddEmployee(limitIsOver int, nameOrganization string, phoneNumber string, email string, geography string, about string) (int64, error)
 }
@@ -39,9 +39,9 @@ type Response struct {
 
 // const aliasLength int = 10
 
-func NewVac(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+func NewVac(log *slog.Logger, saveRequest SaveRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handlers.save.New"
+		const op = "handlers.SaveRequest.New"
 		log := log.With(
 			slog.String("op", op),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
@@ -59,7 +59,7 @@ func NewVac(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 		log.Info("request body success decoded", slog.Any("request", req))
 
-		id, err := urlSaver.AddVacancy(req.Emp_ID, req.Vac_Name, req.Price, req.Location, req.Experience)
+		id, err := saveRequest.AddVacancy(req.Emp_ID, req.Vac_Name, req.Price, req.Location, req.Experience)
 
 		if errors.Is(err, storage.ErrVACExists) {
 			log.Info("vacancy already exists", slog.String("vac", req.Vac_Name))
@@ -84,9 +84,9 @@ func NewVac(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 	}
 }
 
-func NewEmp(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+func NewEmp(log *slog.Logger, saveRequest SaveRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		const op = "handler.save.NewEmp"
+		const op = "handler.SaveRequest.NewEmp"
 		log := log.With(
 			slog.String("op", op),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
@@ -104,7 +104,7 @@ func NewEmp(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 		log.Info("request body success decoded", slog.Any("request", req))
 
-		id, err := urlSaver.AddEmployee(0, req.NameOrganization, req.PhoneNumber, req.Email, req.Geography, req.About)
+		id, err := saveRequest.AddEmployee(0, req.NameOrganization, req.PhoneNumber, req.Email, req.Geography, req.About)
 		if err != nil {
 			w.WriteHeader(461)
 			log.Info("employee already exists", slog.String("email", req.Email))
