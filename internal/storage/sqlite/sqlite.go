@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"server/internal/lib/logger/slogf"
 	"server/internal/server/handlers/take"
 	"server/internal/storage"
 
@@ -142,18 +143,20 @@ func (s *Storage) GetLimit(ID int) int {
 	return 0
 }
 
-func (s *Storage) GetURL(ID int) (take.Response, error) {
-	const op = "storage.sqlite.GetURL"
-	var result take.Response
-	stmtVacancy, err := s.db.Prepare("SELECT price FROM vacancy WHERE id = ?")
+func (s *Storage) GetVacancy(ID int) (take.ResponseVac, error) {
+	const op = "storage.sqlite.GetVacancyByIDs"
+	var result take.ResponseVac
+	stmtVacancy, err := s.db.Prepare("SELECT * FROM vacancy WHERE id = ?")
 	if err != nil {
 		return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
-
 	}
-
-	err = stmtVacancy.QueryRow(ID).Scan(&result.ID)
+	_ = stmtVacancy
+	// row, err := stmtVacancy.Query.Query("SELECT * FROM vacancy")
+	err = s.db.QueryRow("SELECT * FROM vacancy WHERE id = ?", ID).Scan(&result.ID, &result.Emp_ID, &result.Vac_Name, &result.Price, &result.Location, &result.Experience)
+	// fmt.Println(result.Emp_ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Errorf("failed to decode request body", slogf.Err(err))
 			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
 
 		} else {
@@ -161,35 +164,84 @@ func (s *Storage) GetURL(ID int) (take.Response, error) {
 
 		}
 	}
-	result.Ko = "Nunorm"
+
 	return result, nil
 }
 
-/*
-func (s *Storage) GetAll() ([]take.Response, error) {
-	const op = "storage.sqlite.GetAll"
-	_, err := s.db.Prepare("SELECT * FROM url")
+func (s *Storage) GetEmployee(ID int) (take.RequestEmployee, error) {
+	const op = "storage.sqlite.GetEmployeeByIDs"
+	var result take.RequestEmployee
+	stmtVacancy, err := s.db.Prepare("SELECT * FROM employee WHERE id = ?")
+	if err != nil {
+		return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
+	}
+	_ = stmtVacancy
+	// row, err := stmtVacancy.Query.Query("SELECT * FROM vacancy")
+	err = s.db.QueryRow("SELECT * FROM employee WHERE id = ?", ID).Scan(&result.ID, &result.Limit, &result.NameOrganization, &result.PhoneNumber, &result.Email, &result.Geography, &result.About)
+	// fmt.Println(result.Emp_ID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Errorf("failed to decode request body", slogf.Err(err))
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
+
+		} else {
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
+
+		}
+	}
+
+	return result, nil
+}
+
+func (s *Storage) GetAllVacs() ([]take.ResponseVac, error) {
+	const op = "storage.sqlite.GetAllVacancy"
+	_, err := s.db.Prepare("SELECT * FROM vacancy")
 	if err != nil {
 		fmt.Println("ERROR IN CREATING REQUEST OT DB!", op)
 		return nil, fmt.Errorf("ERROR IN CREATING REQUEST OT DB")
 	}
-	result := []take.Response{}
-	row, err := s.db.Query("SELECT * FROM url")
+	result := []take.ResponseVac{}
+	row, err := s.db.Query("SELECT * FROM vacancy")
 	if err != nil {
 		fmt.Println(err, "Error")
 		return nil, nil
 	}
 	for row.Next() {
-		r := take.Response{}
-		err := row.Scan(&r.ID, &r.Alias, &r.URL)
+		r := take.ResponseVac{}
+		err := row.Scan(&r.ID, &r.Emp_ID, &r.Vac_Name, &r.Price, &r.Location, &r.Experience)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
-		r.Status = resp.OK().Status
+		// r.Status = resp.OK().Status
 		result = append(result, r)
 	}
 	fmt.Println()
 	return result, nil
 }
-*/
+
+func (s *Storage) GetAllEmps() ([]take.RequestEmployee, error) {
+	const op = "storage.sqlite.GetAllEmployees"
+	_, err := s.db.Prepare("SELECT * FROM employee")
+	if err != nil {
+		fmt.Println("ERROR IN CREATING REQUEST OT DB!", op)
+		return nil, fmt.Errorf("ERROR IN CREATING REQUEST OT DB")
+	}
+	result := []take.RequestEmployee{}
+	row, err := s.db.Query("SELECT * FROM employee")
+	if err != nil {
+		fmt.Println(err, "Error")
+		return nil, nil
+	}
+	for row.Next() {
+		r := take.RequestEmployee{}
+		err := row.Scan(&r.ID, &r.Limit, &r.NameOrganization, &r.PhoneNumber, &r.Email, &r.Geography, &r.About)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		result = append(result, r)
+	}
+	fmt.Println()
+	return result, nil
+}

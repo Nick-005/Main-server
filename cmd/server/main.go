@@ -49,7 +49,12 @@ func main() {
 
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
-	router.Get("/vac/{id}", take.GetAll(log, storageVac))
+
+	router.Get("/vac/{id}", take.GetVacancyByID(log, storageVac))  // GET запрос для получения данных о вакансии по её ID
+	router.Get("/emp/{id}", take.GetEmployeeByID(log, storageVac)) // GET запрос для получения данных о работадателе по его ID
+
+	router.Get("/vacs", take.GetAllVacancy(log, storageVac))   // GET запрос для получения данных обо всех вакансиях
+	router.Get("/emps", take.GetAllEmployees(log, storageVac)) // GET запрос для получения данных обо всех работадателях
 	// router.Get("/url/{id}", take.NewByID(log, storage))
 	log.Info("starting server", slog.String("address", cfg.Address))
 
