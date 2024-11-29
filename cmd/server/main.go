@@ -6,6 +6,7 @@ import (
 	"os"
 	"server/internal/config"
 	"server/internal/lib/logger/slogf"
+	"server/internal/server/handlers/auth"
 	"server/internal/server/handlers/save"
 	"server/internal/server/handlers/take"
 	"server/internal/storage/sqlite"
@@ -29,6 +30,14 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	//Создание экземпляра, через который будем работать с бд. Но сейчас просто создали новую таблицу вакансий
+	storageUser, err := sqlite.CreateTableUser(cfg.StoragePath)
+	if err != nil {
+		log.Error("failed to init storage", slogf.Err(err))
+		os.Exit(1)
+	}
+
+	// storageUser, err := sqlite.CreateEmployeeTable()
+
 	storageVac, err := sqlite.CreateVacancyTable(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage", slogf.Err(err))
@@ -47,14 +56,16 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
+	router.Post("/user", auth.NewUser(log, storageUser)) // POST запрос для добавления нового пользователя
+
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
 
 	router.Get("/vac/{id}", take.GetVacancyByID(log, storageVac))  // GET запрос для получения данных о вакансии по её ID
-	router.Get("/emp/{id}", take.GetEmployeeByID(log, storageVac)) // GET запрос для получения данных о работадателе по его ID
+	router.Get("/emp/{id}", take.GetEmployeeByID(log, storageEmp)) // GET запрос для получения данных о работадателе по его ID
 
 	router.Get("/vacs", take.GetAllVacancy(log, storageVac))   // GET запрос для получения данных обо всех вакансиях
-	router.Get("/emps", take.GetAllEmployees(log, storageVac)) // GET запрос для получения данных обо всех работадателях
+	router.Get("/emps", take.GetAllEmployees(log, storageEmp)) // GET запрос для получения данных обо всех работадателях
 	// router.Get("/url/{id}", take.NewByID(log, storage))
 	log.Info("starting server", slog.String("address", cfg.Address))
 

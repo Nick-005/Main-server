@@ -44,6 +44,33 @@ func CreateEmployeeTable(storagPath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+func CreateTableUser(storagePath string) (*Storage, error) {
+	const op = "storage.sqlite.New.User"
+	db, err := sql.Open("sqlite3", storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("%s : %w", op, err)
+	}
+	res, err := db.Prepare(`
+	CREATE TABLE IF NOT EXISTS user(
+		id INTEGER PRIMARY KEY,
+		email TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		name TEXT NOT NULL,
+		phoneNumber TEXT NOT NULL UNIQUE
+	)
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	_, err = res.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return &Storage{db: db}, nil
+}
+
 func CreateVacancyTable(storagePath string) (*Storage, error) {
 	const op = "storage.sqlite.New"
 	db, err := sql.Open("sqlite3", storagePath)
@@ -73,8 +100,24 @@ func CreateVacancyTable(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+func (s *Storage) AddUser(email string, password string, name string, phoneNumber string) error {
+	const op = "storage.sqlite.Add.User"
+	stmtUser, err := s.db.Prepare("INSERT INTO user(email, password, name , phoneNumber) VALUES (?,?,?,?)")
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	_, err = stmtUser.Exec(email, password, name, phoneNumber)
+	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return fmt.Errorf("%s: %w", op, storage.ErrUSERExists)
+		}
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
+}
+
 func (s *Storage) AddVacancy(employee_id int, name string, price int, location string, experience string) (int64, error) {
-	const op = "storage.sqlite.SaveURL"
+	const op = "storage.sqlite.Add.Vacancy"
 
 	stmtVacancy, err := s.db.Prepare("INSERT INTO vacancy(employee_id,name ,price,location,experience) VALUES (?,?,?,?,?)")
 
@@ -97,7 +140,7 @@ func (s *Storage) AddVacancy(employee_id int, name string, price int, location s
 }
 
 func (s *Storage) AddEmployee(limitIsOver int, nameOrganization string, phoneNumber string, email string, geography string, about string) (int64, error) {
-	const op = "storage.sqlite.AddEmp"
+	const op = "storage.sqlite.Add.Emp"
 	stmt, err := s.db.Prepare("INSERT INTO employee(limitVac ,nameOrganization,phoneNumber,email,geography,about) VALUES (?,?,?,?,?,?)")
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -144,7 +187,7 @@ func (s *Storage) GetLimit(ID int) int {
 }
 
 func (s *Storage) GetVacancy(ID int) (take.ResponseVac, error) {
-	const op = "storage.sqlite.GetVacancyByIDs"
+	const op = "storage.sqlite.Get.VacancyByIDs"
 	var result take.ResponseVac
 	stmtVacancy, err := s.db.Prepare("SELECT * FROM vacancy WHERE id = ?")
 	if err != nil {
@@ -169,7 +212,7 @@ func (s *Storage) GetVacancy(ID int) (take.ResponseVac, error) {
 }
 
 func (s *Storage) GetEmployee(ID int) (take.RequestEmployee, error) {
-	const op = "storage.sqlite.GetEmployeeByIDs"
+	const op = "storage.sqlite.Get.EmployeeByIDs"
 	var result take.RequestEmployee
 	stmtVacancy, err := s.db.Prepare("SELECT * FROM employee WHERE id = ?")
 	if err != nil {
@@ -194,7 +237,7 @@ func (s *Storage) GetEmployee(ID int) (take.RequestEmployee, error) {
 }
 
 func (s *Storage) GetAllVacs() ([]take.ResponseVac, error) {
-	const op = "storage.sqlite.GetAllVacancy"
+	const op = "storage.sqlite.Get.AllVacancy"
 	_, err := s.db.Prepare("SELECT * FROM vacancy")
 	if err != nil {
 		fmt.Println("ERROR IN CREATING REQUEST OT DB!", op)
@@ -221,7 +264,7 @@ func (s *Storage) GetAllVacs() ([]take.ResponseVac, error) {
 }
 
 func (s *Storage) GetAllEmps() ([]take.RequestEmployee, error) {
-	const op = "storage.sqlite.GetAllEmployees"
+	const op = "storage.sqlite.Get.AllEmployees"
 	_, err := s.db.Prepare("SELECT * FROM employee")
 	if err != nil {
 		fmt.Println("ERROR IN CREATING REQUEST OT DB!", op)
