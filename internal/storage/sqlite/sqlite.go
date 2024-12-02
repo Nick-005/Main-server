@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"server/internal/lib/logger/slogf"
+	"server/internal/server/handlers/auth"
 	"server/internal/server/handlers/take"
 	"server/internal/storage"
 
@@ -114,6 +115,31 @@ func (s *Storage) AddUser(email string, password string, name string, phoneNumbe
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
+}
+
+func (s *Storage) GetLoginWithPassword(uEmail string, uPassword string) (auth.RequestAuth, error) {
+	const op = "storage.sqlite.Get.VacancyByIDs"
+	var result auth.RequestAuth
+	stmtVacancy, err := s.db.Prepare("SELECT * FROM vacancy WHERE id = ?")
+	if err != nil {
+		return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrUSERNotFound)
+	}
+	_ = stmtVacancy
+	// row, err := stmtVacancy.Query.Query("SELECT * FROM vacancy")
+	err = s.db.QueryRow("SELECT email, password  FROM user WHERE email = ? and password = ?", uEmail, uPassword).Scan(&result.Email, &result.Password)
+	// fmt.Println(result.Emp_ID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Errorf("failed to decode request body", slogf.Err(err))
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrUSERSomething)
+
+		} else {
+			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrUSERNotFound)
+
+		}
+	}
+
+	return result, nil
 }
 
 func (s *Storage) AddVacancy(employee_id int, name string, price int, location string, experience string) (int64, error) {

@@ -56,7 +56,8 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/user", auth.NewUser(log, storageUser)) // POST запрос для добавления нового пользователя
+	router.Post("/user", auth.NewUser(log, storageUser))       // POST запрос для добавления нового пользователя
+	router.Post("/user/auth", auth.AuthUser(log, storageUser)) // POST запрос для авторизации пользователя по хэшу пароля + логина
 
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
