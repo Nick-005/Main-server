@@ -67,7 +67,7 @@ func main() {
 
 	router.Get("/vacs", take.GetAllVacancy(log, storageVac))   // GET запрос для получения данных обо всех вакансиях
 	router.Get("/emps", take.GetAllEmployees(log, storageEmp)) // GET запрос для получения данных обо всех работадателях
-	// router.Get("/url/{id}", take.NewByID(log, storage))
+
 	log.Info("starting server", slog.String("address", cfg.Address))
 
 	server := &http.Server{

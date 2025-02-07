@@ -1,5 +1,8 @@
-all: comp
+all: build
 
-comp:
+build:
+	@go build cmd/server/main.go
+
+run:
 	@go run cmd/server/main.go
 	
