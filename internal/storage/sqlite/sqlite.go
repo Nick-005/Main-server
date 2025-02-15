@@ -148,21 +148,26 @@ func (s *Storage) AddVacancy(employee_id int, name string, price int, location s
 	stmtVacancy, err := s.db.Prepare("INSERT INTO vacancy(employee_id,name ,price,location,experience) VALUES (?,?,?,?,?)")
 
 	if err != nil {
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return -1, fmt.Errorf("%s: %w", op, err)
 	}
 	limit := s.GetLimit(employee_id)
 	if limit != 0 {
-		return 0, fmt.Errorf("%s: %w", op, storage.ErrVACLimitIsOver)
+		return -1, fmt.Errorf("%s: %w", op, storage.ErrVACLimitIsOver)
 	}
 
-	_, err = stmtVacancy.Exec(employee_id, name, price, location, experience)
+	sqlResult, err := stmtVacancy.Exec(employee_id, name, price, location, experience)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return 0, fmt.Errorf("%s: %w", op, storage.ErrVACExists)
+			return -1, fmt.Errorf("%s: %w", op, storage.ErrVACExists)
 		}
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return -1, fmt.Errorf("%s: %w", op, err)
 	}
-	return 1, nil
+
+	vac_id, err := sqlResult.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("Ошибка в получении индекса в методе")
+	}
+	return vac_id, nil
 }
 
 func (s *Storage) AddEmployee(limitIsOver int, nameOrganization string, phoneNumber string, email string, geography string, about string) (int64, error) {
