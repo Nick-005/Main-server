@@ -220,11 +220,11 @@ func (s *Storage) GetLimit(ID int) int {
 func (s *Storage) GetVacancy(ID int) (take.ResponseVac, error) {
 	const op = "storage.sqlite.Get.VacancyByIDs"
 	var result take.ResponseVac
-	stmtVacancy, err := s.db.Prepare("SELECT * FROM vacancy WHERE id = ?")
+	_, err := s.db.Prepare("SELECT * FROM vacancy WHERE id = ?")
 	if err != nil {
 		return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
 	}
-	_ = stmtVacancy
+
 	// row, err := stmtVacancy.Query.Query("SELECT * FROM vacancy")
 	err = s.db.QueryRow("SELECT * FROM vacancy WHERE id = ?", ID).Scan(&result.ID, &result.Emp_ID, &result.Vac_Name, &result.Price, &result.Location, &result.Experience)
 	// fmt.Println(result.Emp_ID)
@@ -264,6 +264,33 @@ func (s *Storage) GetEmployee(ID int) (take.RequestEmployee, error) {
 		}
 	}
 
+	return result, nil
+}
+
+func (s *Storage) GetAllVacsForEmployee(emp_id int) ([]take.ResponseVac, error) {
+	const op = "storage.sqlite.Get.AllVacancy"
+	_, err := s.db.Prepare("SELECT * FROM vacancy WHERE employee_id = ?")
+	if err != nil {
+		fmt.Println("ERROR IN CREATING REQUEST OT DB!", op)
+		return nil, fmt.Errorf("ERROR IN CREATING REQUEST OT DB")
+	}
+	result := []take.ResponseVac{}
+	row, err := s.db.Query("SELECT * FROM vacancy WHERE employee_id = ?", emp_id)
+	if err != nil {
+		fmt.Println(err, "Error")
+		return nil, nil
+	}
+	for row.Next() {
+		r := take.ResponseVac{}
+		err := row.Scan(&r.ID, &r.Emp_ID, &r.Vac_Name, &r.Price, &r.Location, &r.Experience)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		// r.Status = resp.OK().Status
+		result = append(result, r)
+	}
+	fmt.Println()
 	return result, nil
 }
 

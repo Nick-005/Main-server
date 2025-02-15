@@ -65,6 +65,8 @@ func main() {
 	router.Get("/vac/{id}", take.GetVacancyByID(log, storageVac))  // GET запрос для получения данных о вакансии по её ID
 	router.Get("/emp/{id}", take.GetEmployeeByID(log, storageEmp)) // GET запрос для получения данных о работадателе по его ID
 
+	router.Get("/emp/vac/{id}", take.GETVacancyFromEmployee(log, storageEmp)) // GET запрос для получения всех вакансий одного работодателя по его ID
+
 	router.Get("/vacs", take.GetAllVacancy(log, storageVac))   // GET запрос для получения данных обо всех вакансиях
 	router.Get("/emps", take.GetAllEmployees(log, storageEmp)) // GET запрос для получения данных обо всех работадателях
 

@@ -19,7 +19,7 @@ type SaveRequest interface {
 type GetRequest interface {
 	GetVacancy(ID int) (ResponseVac, error)
 	GetAllVacs() ([]ResponseVac, error)
-
+	GetAllVacsForEmployee(emp_id int) ([]ResponseVac, error)
 	GetAllEmps() ([]RequestEmployee, error)
 	GetEmployee(ID int) (RequestEmployee, error)
 }
@@ -115,6 +115,30 @@ func GetVacancyByID(log *slog.Logger, getReq GetRequest) http.HandlerFunc {
 			Location:   res.Location,
 			Experience: res.Experience,
 		})
+	}
+}
+
+func GETVacancyFromEmployee(log *slog.Logger, getReq GetRequest) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const op = "storage.sqlite.VacancyFromEmployee"
+		log.Info(op)
+		ID := chi.URLParam(r, "id")
+		id, err := strconv.Atoi(ID)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		res, err := getReq.GetAllVacsForEmployee(id)
+		if err != nil {
+			w.WriteHeader(452)
+			render.JSON(w, r, ResponseError{
+				Response: resp.Error("Vacancy doesn't exist!"),
+				Info:     "Вакансий не существует! Перепроверьте на наличие ошибок запрос!",
+			})
+			return
+		}
+		// fmt.Println(res, err, op)
+		render.JSON(w, r, res)
 	}
 }
 
