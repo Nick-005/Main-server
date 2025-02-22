@@ -1,13 +1,17 @@
 package sqlite
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"server/internal/lib/logger/slogf"
 	"server/internal/server/handlers/auth"
 	"server/internal/server/handlers/take"
 	"server/internal/storage"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 )
@@ -101,6 +105,55 @@ func CreateVacancyTable(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
+type Header struct {
+	Alg string `json:"alg"` // Алгоритм подписи
+	Typ string `json:"typ"` // Тип токена
+}
+
+type Payload struct {
+	Iss string `json:"iss"`
+	Sub string `json:"sub"` // Subject (обычно идентификатор пользователя)
+	Iat int64  `json:"iat"` // Issued at - время в которое был выдан токен
+	Exp int64  `json:"exp"` // Время истечения токена (в Unix timestamp)
+}
+
+func (s *Storage) CreateNewToken(email string) (string, error) {
+	var secretKEY string = "ISP-7-21-borodinna"
+
+	var header Header
+	header.Alg = "HS256"
+	header.Typ = "JWT"
+
+	var payload Payload
+	payload.Iss = "BorNick-aka-monkeyZV"
+	payload.Sub = email
+	payload.Iat = time.Now().Unix()
+	payload.Exp = time.Now().Add(time.Second * 60).Unix()
+
+	headerJSON, err := json.Marshal(header)
+	if err != nil {
+		return "error", fmt.Errorf("error in converting HEADER to JSON")
+	}
+	headerBASE64 := base64.RawURLEncoding.Strict().EncodeToString(headerJSON)
+
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return "error", fmt.Errorf("error in converting PAYLOAD to JSON")
+	}
+	payloadBASE64 := base64.RawURLEncoding.Strict().EncodeToString(payloadJSON)
+
+	// создаем подпись для JWTшки
+	signaturePayAndHeader := fmt.Sprintf("%s.%s", headerBASE64, payloadBASE64)
+
+	h := hmac.New(sha256.New, []byte(secretKEY))
+	h.Write([]byte(signaturePayAndHeader))
+	var signature string = base64.RawStdEncoding.EncodeToString(h.Sum(nil))
+
+	var tokenJWT string = fmt.Sprintf("%s.%s.%s", headerBASE64, payloadBASE64, signature)
+
+	return tokenJWT, nil
+}
+
 func (s *Storage) AddUser(email string, password string, name string, phoneNumber string) error {
 	const op = "storage.sqlite.Add.User"
 	stmtUser, err := s.db.Prepare("INSERT INTO user(email, password, name , phoneNumber) VALUES (?,?,?,?)")
@@ -130,7 +183,6 @@ func (s *Storage) GetLoginWithPassword(uEmail string, uPassword string) (auth.Re
 	// fmt.Println(result.Emp_ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Errorf("failed to decode request body", slogf.Err(err))
 			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrUSERSomething)
 
 		} else {
@@ -165,7 +217,7 @@ func (s *Storage) AddVacancy(employee_id int, name string, price int, location s
 
 	vac_id, err := sqlResult.LastInsertId()
 	if err != nil {
-		return -1, fmt.Errorf("Ошибка в получении индекса в методе")
+		return -1, fmt.Errorf("error in take index inside method")
 	}
 	return vac_id, nil
 }
@@ -230,7 +282,7 @@ func (s *Storage) GetVacancy(ID int) (take.ResponseVac, error) {
 	// fmt.Println(result.Emp_ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Errorf("failed to decode request body", slogf.Err(err))
+			// fmt.Errorf("failed to decode request body", slogf.Err(err))
 			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
 
 		} else {
@@ -255,7 +307,7 @@ func (s *Storage) GetEmployee(ID int) (take.RequestEmployee, error) {
 	// fmt.Println(result.Emp_ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Errorf("failed to decode request body", slogf.Err(err))
+			// fmt.Errorf("failed to decode request body", slogf.Err(err))
 			return result, fmt.Errorf("%s: preparing statement  %w", op, storage.ErrVACNotFound)
 
 		} else {

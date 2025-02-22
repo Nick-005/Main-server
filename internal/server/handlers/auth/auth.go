@@ -44,6 +44,12 @@ type Response struct {
 	resp.Response
 }
 
+func CreateToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
 func NewUser(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handler.auth.New.User"
