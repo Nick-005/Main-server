@@ -21,6 +21,7 @@ import (
 type AddRequest interface {
 	AddUser(email string, password string, name string, phoneNumber string) error
 	GetLoginWithPassword(uEmail string, uPassword string) (RequestAuth, error)
+	CreateNewToken(email string) (string, error)
 }
 
 type RequestAdd struct {
@@ -35,6 +36,11 @@ type RequestAuth struct {
 	Password string `json:"password"`
 }
 
+type RequestToken struct {
+	Email   string `json:"email" `
+	JWToken string `json:"token"`
+}
+
 type ResponseErr struct {
 	resp.Response
 	Message string `json:"error"`
@@ -46,7 +52,16 @@ type Response struct {
 
 func CreateToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
+		answer, err := addReq.CreateNewToken("nice_email@bk.ru")
+		if err != nil {
+			render.JSON(w, r, "error")
+			return
+		}
+		render.JSON(w, r, RequestToken{
+			Email:   "nice_email@bk.ru",
+			JWToken: answer,
+		})
+		return
 	}
 }
 

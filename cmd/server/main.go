@@ -30,23 +30,27 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	//Создание экземпляра, через который будем работать с бд. Но сейчас просто создали новую таблицу вакансий
-	storageUser, err := sqlite.CreateTableUser(cfg.StoragePath)
+	_, err := sqlite.CreateTableUser(cfg.StoragePath)
 	if err != nil {
-		log.Error("failed to init storage", slogf.Err(err))
+		log.Error("failed to init storage in User", slogf.Err(err))
 		os.Exit(1)
 	}
-
+	storageUser, err := sqlite.CreateTokenTable(cfg.StoragePath)
+	if err != nil {
+		log.Error("failed to init storage in Token", slogf.Err(err))
+		os.Exit(1)
+	}
 	// storageUser, err := sqlite.CreateEmployeeTable()
 
 	storageVac, err := sqlite.CreateVacancyTable(cfg.StoragePath)
 	if err != nil {
-		log.Error("failed to init storage", slogf.Err(err))
+		log.Error("failed to init storage in Vacancy", slogf.Err(err))
 		os.Exit(1)
 	}
 	// Создание таблицы Работадателя
 	storageEmp, err := sqlite.CreateEmployeeTable(cfg.StoragePath)
 	if err != nil {
-		log.Error("failed to init storage", slogf.Err(err))
+		log.Error("failed to init storage in Employer", slogf.Err(err))
 		os.Exit(1)
 	}
 	// Ниже идёт создание роутера и использование его для middleware из chi
@@ -58,6 +62,7 @@ func main() {
 
 	router.Post("/user", auth.NewUser(log, storageUser))       // POST запрос для добавления нового пользователя
 	router.Post("/user/auth", auth.AuthUser(log, storageUser)) // POST запрос для авторизации пользователя по хэшу пароля + логина
+	router.Post("/token", auth.CreateToken(log, storageUser))
 
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
@@ -73,7 +78,7 @@ func main() {
 	log.Info("starting server", slog.String("address", cfg.Address))
 
 	server := &http.Server{
-		Addr:         cfg.Address,
+		Addr:         "localhost:8089",
 		Handler:      router,
 		ReadTimeout:  cfg.HTTPServer.Timeout,
 		WriteTimeout: cfg.HTTPServer.Timeout,
