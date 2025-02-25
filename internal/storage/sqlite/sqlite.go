@@ -144,7 +144,44 @@ type Payload struct {
 	Exp int64  `json:"exp"` // Время истечения токена (в Unix timestamp)
 }
 
-func (s *Storage) CreateNewToken(email string) (string, error) {
+func (s *Storage) CreateRefreshToken(email string) (string, error) {
+	var secretKEY string = "super-nice-SECRETKEY-for-backendPART of 12341213 years from colleges"
+
+	var header Header
+	header.Alg = "HS256"
+	header.Typ = "JWT"
+
+	var payload Payload
+	payload.Iss = "Nick005-aka-monkeyZV-nikita"
+	payload.Sub = email
+	payload.Iat = time.Now().Unix()
+	payload.Exp = time.Now().Add(time.Hour * 72).Unix()
+
+	headerJSON, err := json.Marshal(header)
+	if err != nil {
+		return "error", fmt.Errorf("error in converting HEADER to JSON")
+	}
+	headerBASE64 := base64.RawURLEncoding.Strict().EncodeToString(headerJSON)
+
+	payloadJSON, err := json.Marshal(payload)
+	if err != nil {
+		return "error", fmt.Errorf("error in converting PAYLOAD to JSON")
+	}
+	payloadBASE64 := base64.RawURLEncoding.Strict().EncodeToString(payloadJSON)
+
+	// создаем подпись для JWTшки
+	signaturePayAndHeader := fmt.Sprintf("%s.%s", headerBASE64, payloadBASE64)
+
+	h := hmac.New(sha256.New, []byte(secretKEY))
+	h.Write([]byte(signaturePayAndHeader))
+	var signature string = base64.RawStdEncoding.EncodeToString(h.Sum(nil))
+
+	var tokenJWT string = fmt.Sprintf("%s.%s.%s", headerBASE64, payloadBASE64, signature)
+
+	return tokenJWT, nil
+}
+
+func (s *Storage) CreateAccessToken(email string) (string, error) {
 	var secretKEY string = "ISP-7-21-borodinna"
 
 	var header Header

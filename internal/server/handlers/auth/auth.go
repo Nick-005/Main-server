@@ -5,6 +5,7 @@ import (
 	"net/http"
 	resp "server/internal/api"
 	"server/internal/lib/logger/slogf"
+	"strings"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
@@ -21,7 +22,8 @@ import (
 type AddRequest interface {
 	AddUser(email string, password string, name string, phoneNumber string) error
 	GetLoginWithPassword(uEmail string, uPassword string) (RequestAuth, error)
-	CreateNewToken(email string) (string, error)
+	CreateAccessToken(email string) (string, error)
+	CreateRefreshToken(email string) (string, error)
 }
 
 type RequestAdd struct {
@@ -41,6 +43,12 @@ type RequestToken struct {
 	JWToken string `json:"token"`
 }
 
+type ResponseRegistration struct {
+	resp.Response
+	Email   string `json:"email" `
+	JWToken string `json:"token"`
+}
+
 type ResponseErr struct {
 	resp.Response
 	Message string `json:"error"`
@@ -50,9 +58,22 @@ type Response struct {
 	resp.Response
 }
 
-func CreateToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
+func TakeToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		answer, err := addReq.CreateNewToken("nice_email@bk.ru")
+		auth := r.Header.Get("Authorization")
+		token := strings.TrimPrefix(auth, "Bearer ")
+		render.JSON(w, r, RequestToken{
+			Email:   "TakeToken@test.ru",
+			JWToken: token,
+		})
+
+	}
+}
+
+func CreateOrUpdateAccessToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		answer, err := addReq.CreateAccessToken("CreateOrUpdateToken@test.ru")
 		if err != nil {
 			render.JSON(w, r, "error")
 			return
@@ -61,7 +82,6 @@ func CreateToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 			Email:   "nice_email@bk.ru",
 			JWToken: answer,
 		})
-		return
 	}
 }
 
@@ -91,8 +111,16 @@ func NewUser(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 			render.JSON(w, r, resp.Error(err.Error()))
 			return
 		}
-		render.JSON(w, r, Response{
+		token, err := addReq.CreateAccessToken(req.Email)
+		if err != nil {
+			log.Error("failed to create token for new user", slogf.Err(err))
+			render.JSON(w, r, resp.Error(err.Error()))
+			return
+		}
+		render.JSON(w, r, ResponseRegistration{
 			Response: resp.OK(),
+			Email:    req.Email,
+			JWToken:  token,
 		})
 
 	}

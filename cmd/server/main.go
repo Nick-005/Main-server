@@ -30,17 +30,17 @@ func main() {
 	log.Debug("debug messages are enabled")
 
 	//Создание экземпляра, через который будем работать с бд. Но сейчас просто создали новую таблицу вакансий
-	_, err := sqlite.CreateTableUser(cfg.StoragePath)
+	storageUser, err := sqlite.CreateTableUser(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage in User", slogf.Err(err))
 		os.Exit(1)
 	}
-	storageUser, err := sqlite.CreateTokenTable(cfg.StoragePath)
+	storageUser, err = sqlite.CreateTokenTable(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage in Token", slogf.Err(err))
 		os.Exit(1)
 	}
-	// storageUser, err := sqlite.CreateEmployeeTable()
+	// // storageUser, err := sqlite.CreateEmployeeTable()
 
 	storageVac, err := sqlite.CreateVacancyTable(cfg.StoragePath)
 	if err != nil {
@@ -62,7 +62,9 @@ func main() {
 
 	router.Post("/user", auth.NewUser(log, storageUser))       // POST запрос для добавления нового пользователя
 	router.Post("/user/auth", auth.AuthUser(log, storageUser)) // POST запрос для авторизации пользователя по хэшу пароля + логина
-	router.Post("/token", auth.CreateToken(log, storageUser))
+	router.Post("/token", auth.CreateOrUpdateAccessToken(log, storageUser))
+
+	router.Get("/auth/token", auth.TakeToken(log, storageUser))
 
 	router.Post("/vac", save.NewVac(log, storageVac)) // POST запрос для добавления новой вакансии
 	router.Post("/emp", save.NewEmp(log, storageEmp)) // POST запрос для добавления новой организации
