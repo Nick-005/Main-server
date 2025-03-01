@@ -181,7 +181,31 @@ func (s *Storage) CreateRefreshToken(email string) (string, error) {
 	return tokenJWT, nil
 }
 
-func (s *Storage) CreateAccessToken(email string) (string, error) {
+func (s *Storage) CreateAccessToken(email string, uid int) (int, string, error) {
+	const op = "sqlite.CreateAccessToken.user"
+	token, err := CreateToken(email)
+	if err != nil {
+		return -1, "error", err
+	}
+	stmtUser, err := s.db.Prepare("INSERT INTO token(user_id, active_token, is_active) VALUES (?,?,?)")
+	if err != nil {
+		return -1, "error", fmt.Errorf("%s: %w", op, err)
+	}
+	indexd, err := stmtUser.Exec(uid, token, 1)
+	if err != nil {
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return -1, "error", fmt.Errorf("%s: %w", op, err)
+		}
+		return -1, "error", fmt.Errorf("%s: %w", op, err)
+	}
+	user_id, err := indexd.LastInsertId()
+	if err != nil {
+		return -1, "error", fmt.Errorf("%s: %w", op, err)
+	}
+	return int(user_id), token, nil
+}
+
+func CreateToken(email string) (string, error) {
 	var secretKEY string = "ISP-7-21-borodinna"
 
 	var header Header
@@ -218,20 +242,24 @@ func (s *Storage) CreateAccessToken(email string) (string, error) {
 	return tokenJWT, nil
 }
 
-func (s *Storage) AddUser(email string, password string, name string, phoneNumber string) error {
+func (s *Storage) AddUser(email string, password string, name string, phoneNumber string) (int, error) {
 	const op = "storage.sqlite.Add.User"
 	stmtUser, err := s.db.Prepare("INSERT INTO user(email, password, name , phoneNumber) VALUES (?,?,?,?)")
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return -1, fmt.Errorf("%s: %w", op, err)
 	}
-	_, err = stmtUser.Exec(email, password, name, phoneNumber)
+	indexd, err := stmtUser.Exec(email, password, name, phoneNumber)
 	if err != nil {
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return fmt.Errorf("%s: %w", op, storage.ErrUSERExists)
+			return -1, fmt.Errorf("%s: %w", op, storage.ErrUSERExists)
 		}
-		return fmt.Errorf("%s: %w", op, err)
+		return -1, fmt.Errorf("%s: %w", op, err)
 	}
-	return nil
+	uid, err := indexd.LastInsertId()
+	if err != nil {
+		return -1, fmt.Errorf("%s: %w", op, err)
+	}
+	return int(uid), nil
 }
 
 func (s *Storage) GetLoginWithPassword(uEmail string, uPassword string) (auth.RequestAuth, error) {
@@ -254,7 +282,6 @@ func (s *Storage) GetLoginWithPassword(uEmail string, uPassword string) (auth.Re
 
 		}
 	}
-
 	return result, nil
 }
 

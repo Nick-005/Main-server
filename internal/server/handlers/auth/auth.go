@@ -20,9 +20,9 @@ import (
 // Инн для работадателя
 */
 type AddRequest interface {
-	AddUser(email string, password string, name string, phoneNumber string) error
+	AddUser(email string, password string, name string, phoneNumber string) (int, error)
 	GetLoginWithPassword(uEmail string, uPassword string) (RequestAuth, error)
-	CreateAccessToken(email string) (string, error)
+	CreateAccessToken(email string, uid int) (int, string, error)
 	CreateRefreshToken(email string) (string, error)
 }
 
@@ -45,6 +45,7 @@ type RequestToken struct {
 
 type ResponseRegistration struct {
 	resp.Response
+	UID     int    `json:"user_id"`
 	Email   string `json:"email" `
 	JWToken string `json:"token"`
 }
@@ -73,12 +74,13 @@ func TakeToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 func CreateOrUpdateAccessToken(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		answer, err := addReq.CreateAccessToken("CreateOrUpdateToken@test.ru")
+		uid, answer, err := addReq.CreateAccessToken("CreateOrUpdateToken@test.ru", 0)
 		if err != nil {
 			render.JSON(w, r, "error")
 			return
 		}
-		render.JSON(w, r, RequestToken{
+		render.JSON(w, r, ResponseRegistration{
+			UID:     uid,
 			Email:   "nice_email@bk.ru",
 			JWToken: answer,
 		})
@@ -105,13 +107,13 @@ func NewUser(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 
 		log.Info("request body success decoded", slog.Any("request", req))
 
-		err = addReq.AddUser(req.Email, req.Password, req.Name, req.PhoneNumber)
+		uid, err := addReq.AddUser(req.Email, req.Password, req.Name, req.PhoneNumber)
 		if err != nil {
 			log.Error("failed to add new user", slogf.Err(err))
 			render.JSON(w, r, resp.Error(err.Error()))
 			return
 		}
-		token, err := addReq.CreateAccessToken(req.Email)
+		uid, token, err := addReq.CreateAccessToken(req.Email, uid)
 		if err != nil {
 			log.Error("failed to create token for new user", slogf.Err(err))
 			render.JSON(w, r, resp.Error(err.Error()))
@@ -119,6 +121,7 @@ func NewUser(log *slog.Logger, addReq AddRequest) http.HandlerFunc {
 		}
 		render.JSON(w, r, ResponseRegistration{
 			Response: resp.OK(),
+			UID:      uid,
 			Email:    req.Email,
 			JWToken:  token,
 		})
